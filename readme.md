@@ -1,8 +1,14 @@
-# SOR 2022 Robot Code
+# SOR Robot Template
 
-FRC Team 6059's 2022 Robot code, built to drive an as-of-yet unnamed robot.
-Our code features controls for a simple climb, intake with color detection,
-swerve drive, and a shooter with Limelight target acquisition.
+This repository is used as a template for robot projects on the team. This 
+allows us to implement libraries with core functionality to reuse year-to-year.
+See specific directories for directions on using functionality. Right now, we
+have implemented the following features:
+
+ * Motor controller agnostic abstractions over motors
+
+*Note: when copying this project to make a robot project, this readme should be
+updated*
 
 ## Building
 
@@ -24,7 +30,7 @@ Development follows the
 as described by Atlassian. Potential changes should be made on branches specific
 to a given feature, and proposed by creating a pull request into `master`.
 
-SOR2022 targets Java 11, which is required to use and deploy the robot code.
+SOR's template targets Java 11, which is required to use and deploy the robot code.
 *Do not use features from standards above Java 11.*
 
 ### Branches
