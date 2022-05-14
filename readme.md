@@ -36,7 +36,7 @@ SOR's template targets Java 11, which is required to use and deploy the robot co
 ### Branches
 
 Pull requests into `master` should be signed off on by a mentor to ensure that
-code standards are mastertained.
+code standards are maintained.
 
 Once the robot is created and a program has been tested for it, we will enter
 "production" mode, where a branch `live` will be created from `master`. At this
