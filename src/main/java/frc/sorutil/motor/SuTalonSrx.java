@@ -2,22 +2,31 @@ package frc.sorutil.motor;
 
 import java.util.logging.Logger;
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.IFollower;
+import com.ctre.phoenix.motorcontrol.IMotorController;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.SupplyCurrentLimitConfiguration;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
+import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 import frc.sorutil.motor.SuMotor.IdleMode;
 
 public class SuTalonSrx implements SuController {
   private static final double DEFAULT_CURRENT_LIMIT = 60;
+  private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
 
   private final Logger logger;
 
   private final WPI_TalonSRX talon;
   private MotorConfiguration config;
-  boolean voltageControlOverrideSet = false;
+  private SensorConfiguration sensorConfig;
+
+  private boolean voltageControlOverrideSet = false;
   private Double lastVoltageCompensation = null;
+
+  private SuMotor.ControlMode lastMode;
+  private double lastSetpoint;
 
   public SuTalonSrx(WPI_TalonSRX talon, String name) {
     int channel = talon.getDeviceID();
@@ -27,10 +36,16 @@ public class SuTalonSrx implements SuController {
   }
 
   @Override
-  public void configure(MotorConfiguration config) {
+  public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
     this.config = config;
+    this.sensorConfig = sensorConfig;
+
+    Errors.handleCtre(talon.clearMotionProfileHasUnderrun(), logger, "clearing motion profile");
+    Errors.handleCtre(talon.clearMotionProfileTrajectories(), logger, "clearing motion profile trajectories");
 
     Errors.handleCtre(talon.configFactoryDefault(), logger, "resetting motor config");
+
+    talon.setInverted(config.inverted());
 
     Errors.handleCtre(talon.config_kP(0, config.pidProfile().p()), logger, "setting P constant");
     Errors.handleCtre(talon.config_kI(0, config.pidProfile().i()), logger, "setting I constant");
@@ -55,6 +70,22 @@ public class SuTalonSrx implements SuController {
       desiredMode = NeutralMode.Brake;
     }
     talon.setNeutralMode(desiredMode);
+
+    double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
+    if (config.neutralDeadband() != null){
+      neutralDeadband = config.neutralDeadband();
+    }
+    Errors.handleCtre(talon.configNeutralDeadband(neutralDeadband), logger, "setting neutral deadband");
+
+    Errors.handleCtre(talon.configPeakOutputForward(config.maxOutput()), logger, "configuring max output");
+    Errors.handleCtre(talon.configPeakOutputReverse(-config.maxOutput()), logger, "configuring max output");
+
+    if (sensorConfig != null) {
+      if (sensorConfig.source() instanceof IntegratedSensorSource) {
+        throw new MotorConfigurationError(
+            "Talon SRX has no integrated sensor, but motor was configured to use integerated sensor source, use ConnectedSensorSource instead for sensors connected to the Talon's IO port.");
+      }
+    }
   }
 
   @Override
@@ -64,7 +95,7 @@ public class SuTalonSrx implements SuController {
 
   @Override
   public void tick() {
-
+    Errors.handleCtre(talon.getLastError(), logger, "in motor loop, likely from setting a motor update");
   }
 
   private void restoreDefaultVoltageCompensation() {
@@ -80,6 +111,13 @@ public class SuTalonSrx implements SuController {
       voltageControlOverrideSet = false;
       lastVoltageCompensation = null;
     }
+
+    // Skip updating the motor if the setpoint is the same, this reduces unneccessary CAN messages.
+    if (setpoint == lastSetpoint && mode == lastMode) {
+      return;
+    }
+    lastSetpoint = setpoint;
+    lastMode = mode;
 
     switch(mode) {
       case PERCENT_OUTPUT:
@@ -111,6 +149,26 @@ public class SuTalonSrx implements SuController {
 
   @Override
   public void follow(SuController other) { 
+    if (!(other.rawController() instanceof IFollower)) {
+      throw new MotorConfigurationError(
+          "CTRE motor controllers can only follow other motor controllers from CTRE");
+    }
+
+    talon.follow((IMotorController) other.rawController());
+  }
+
+  @Override
+  public double outputPosition() {
+    return 0;
+  }
+
+  @Override
+  public double outputVelocity() {
+    return 0;
+  }
+
+  @Override
+  public void setSensorPosition(double position) {
 
   }
 }

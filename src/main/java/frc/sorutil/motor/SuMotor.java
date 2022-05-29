@@ -28,14 +28,23 @@ public class SuMotor <T extends SuController> {
   private final Logger logger;
 
   private T controller;
+  private final SensorConfiguration sensorConfig;
 
   public SuMotor (T controller) {
     this(controller, new MotorConfiguration());
   }
 
   public SuMotor (T controller, MotorConfiguration config) {
+    this(controller, config, null);
+  }
+
+  public SuMotor (T controller, MotorConfiguration config, SensorConfiguration sensorConfig) {
     logger = Logger.getLogger(SuMotor.class.getName());
     this.controller = controller;
+    MotorManager.instance().addMotor(this);
+    this.sensorConfig = sensorConfig;
+
+    controller.configure(config, sensorConfig);
   }
 
   public MotorController rawController() {

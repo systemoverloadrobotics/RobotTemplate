@@ -2,19 +2,30 @@ package frc.sorutil.motor;
 
 import java.util.logging.Logger;
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.IFollower;
+import com.ctre.phoenix.motorcontrol.IMotorController;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
+import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
+import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 import frc.sorutil.motor.SuMotor.IdleMode;
 
 public class SuVictorSpx implements SuController {
+  private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
+
   private final Logger logger;
 
   private final WPI_VictorSPX victor;
   private MotorConfiguration config;
-  boolean voltageControlOverrideSet = false;
+  private SensorConfiguration sensorConfig;
+
+  private boolean voltageControlOverrideSet = false;
   private Double lastVoltageCompensation = null;
+
+  private SuMotor.ControlMode lastMode;
+  private double lastSetpoint;
 
   public SuVictorSpx(WPI_VictorSPX victor, String name) {
     int channel = victor.getDeviceID();
@@ -24,10 +35,13 @@ public class SuVictorSpx implements SuController {
   }
 
   @Override
-  public void configure(MotorConfiguration config) {
+  public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
     this.config = config;
+    this.sensorConfig = sensorConfig;
 
     Errors.handleCtre(victor.configFactoryDefault(), logger, "resetting motor config");
+
+    victor.setInverted(config.inverted());
 
     Errors.handleCtre(victor.config_kP(0, config.pidProfile().p()), logger, "setting P constant");
     Errors.handleCtre(victor.config_kI(0, config.pidProfile().i()), logger, "setting I constant");
@@ -48,6 +62,26 @@ public class SuVictorSpx implements SuController {
       desiredMode = NeutralMode.Brake;
     }
     victor.setNeutralMode(desiredMode);
+
+    double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
+    if (config.neutralDeadband() != null){
+      neutralDeadband = config.neutralDeadband();
+    }
+    Errors.handleCtre(victor.configNeutralDeadband(neutralDeadband), logger, "setting neutral deadband");
+
+    Errors.handleCtre(victor.configPeakOutputForward(config.maxOutput()), logger, "configuring max output");
+    Errors.handleCtre(victor.configPeakOutputReverse(-config.maxOutput()), logger, "configuring max output");
+
+    if (sensorConfig != null) {
+      if (sensorConfig.source() instanceof IntegratedSensorSource) {
+        throw new MotorConfigurationError(
+            "Victor SPX has no integrated sensor, but motor was configured to use integerated sensor source");
+      }
+      if (sensorConfig.source() instanceof ConnectedSensorSource) {
+        throw new MotorConfigurationError(
+            "Victor SPX does not supported directly connected sensors, but was configured to use one.");
+      }
+    }
   }
 
   @Override
@@ -57,7 +91,7 @@ public class SuVictorSpx implements SuController {
 
   @Override
   public void tick() {
-
+    Errors.handleCtre(victor.getLastError(), logger, "in motor loop, likely from setting a motor update");
   }
 
   private void restoreDefaultVoltageCompensation() {
@@ -73,6 +107,13 @@ public class SuVictorSpx implements SuController {
       voltageControlOverrideSet = false;
       lastVoltageCompensation = null;
     }
+
+    // Skip updating the motor if the setpoint is the same, this reduces unneccessary CAN messages.
+    if (setpoint == lastSetpoint && mode == lastMode) {
+      return;
+    }
+    lastSetpoint = setpoint;
+    lastMode = mode;
 
     switch (mode) {
       case PERCENT_OUTPUT:
@@ -104,6 +145,26 @@ public class SuVictorSpx implements SuController {
 
   @Override
   public void follow(SuController other) { 
+    if (!(other.rawController() instanceof IFollower)) {
+      throw new MotorConfigurationError(
+          "CTRE motor controllers can only follow other motor controllers from CTRE");
+    }
+
+    victor.follow((IMotorController) other.rawController());
+  }
+
+  @Override
+  public double outputPosition() {
+    return 0;
+  }
+
+  @Override
+  public double outputVelocity() {
+    return 0;
+  }
+
+  @Override
+  public void setSensorPosition(double position) {
 
   }
 }
