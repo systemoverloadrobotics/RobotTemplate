@@ -12,7 +12,7 @@ updated*
 
 ## Building
 
-To build and deploy the project, simply import into "WPILib 2022 VSCode" by
+To build and deploy the project, simply import into "WPILib 2023 VSCode" by
 opening the folder the project is checked out into, and run the action 
 "WPILib: Deploy robot code." 
 
@@ -30,8 +30,8 @@ Development follows the
 as described by Atlassian. Potential changes should be made on branches specific
 to a given feature, and proposed by creating a pull request into `master`.
 
-SOR's template targets Java 11, which is required to use and deploy the robot code.
-*Do not use features from standards above Java 11.*
+SOR's template targets Java 17, which is required to use and deploy the robot code.
+*Do not use features from standards above Java 17.*
 
 ### Branches
 
@@ -47,3 +47,10 @@ must undergo rigerous testing.
 Discipline in ensuring the code in `live` is thoroughly tested and is promoted
 in batches ensures that there will always exist a version of the robot's code
 that is known good and can be used in a match.
+
+### Testing
+
+Tests should be placed in the traditional Java directory (`src/test/java/`) 
+corresponding to their location in the robot code. 
+
+Tests are written with the JUnit 5 library.
