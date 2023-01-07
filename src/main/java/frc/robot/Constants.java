@@ -15,6 +15,9 @@ import edu.wpi.first.math.util.Units;
  * constants are needed, to reduce verbosity.
  */
 public final class Constants {
+    // Periodic timing of the robot, WPILib default is 0.02 (20ms)
+    public static final Double ROBOT_PERIOD = 0.02; // 20 ms
+
     public static final class RobotDimensions {
         // TODO: replace these with actual dimensions
         public static final double WIDTH = Units.inchesToMeters(0);
